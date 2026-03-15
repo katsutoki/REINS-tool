@@ -103,18 +103,18 @@ def find_comparables(
 # 判定ロジック
 # ──────────────────────────────────────────────
 VERDICT_LEVELS = [
-    (20,   "⭕ かなりお買い得", "#1a9641", "中央値と比べて20%以上安い"),
-    (5,    "✅ お買い得",       "#a6d96a", "中央値と比べて5〜20%安い"),
-    (-5,   "➡️ 適正価格",       "#ffffbf", "中央値と比べて±5%以内"),
-    (-20,  "⚠️ やや割高",       "#fdae61", "中央値と比べて5〜20%高い"),
-    (None, "🔴 割高",           "#d7191c", "中央値と比べて20%以上高い"),
+    (20,   "⭕ かなりお買い得", "#1a9641", "中央値と比べて20%以上安い",  "great.png"),
+    (5,    "✅ お買い得",       "#a6d96a", "中央値と比べて5〜20%安い",   "good.png"),
+    (-5,   "➡️ 適正価格",       "#ffffbf", "中央値と比べて±5%以内",      "neutral.png"),
+    (-20,  "⚠️ やや割高",       "#fdae61", "中央値と比べて5〜20%高い",   "warn.png"),
+    (None, "🔴 割高",           "#d7191c", "中央値と比べて20%以上高い",  "bad.png"),
 ]
 
 def get_verdict(diff_pct: float):
-    for threshold, label, color, desc in VERDICT_LEVELS:
+    for threshold, label, color, desc, img in VERDICT_LEVELS:
         if threshold is None or diff_pct >= threshold:
-            return label, color, desc
-    return VERDICT_LEVELS[-1][1], VERDICT_LEVELS[-1][2], VERDICT_LEVELS[-1][3]
+            return label, color, desc, img
+    return VERDICT_LEVELS[-1][1], VERDICT_LEVELS[-1][2], VERDICT_LEVELS[-1][3], VERDICT_LEVELS[-1][4]
 
 
 # ──────────────────────────────────────────────
@@ -224,15 +224,19 @@ if not same_bldg.empty:
     if not sb_sqm.empty:
         sb_median = sb_sqm.median()
         sb_diff   = (sb_median - input_sqm) / sb_median * 100
-        sb_label, sb_color, sb_desc = get_verdict(sb_diff)
-        st.markdown(
-            f"<div style='background:{sb_color};padding:12px;border-radius:8px;"
-            f"text-align:center;font-size:1.2rem;font-weight:bold;color:#222;'>"
-            f"同一物件の成約履歴と比較: {sb_label}"
-            f"<br><span style='font-size:0.9rem;font-weight:normal;'>{sb_desc}（同物件中央値 {sb_median:.1f} 万円/㎡）</span>"
-            f"</div>",
-            unsafe_allow_html=True,
-        )
+        sb_label, sb_color, sb_desc, sb_img = get_verdict(sb_diff)
+        img_col, txt_col = st.columns([1, 4])
+        with img_col:
+            st.image(sb_img, width=120)
+        with txt_col:
+            st.markdown(
+                f"<div style='background:{sb_color};padding:12px;border-radius:8px;"
+                f"text-align:center;font-size:1.2rem;font-weight:bold;color:#222;'>"
+                f"同一物件の成約履歴と比較: {sb_label}"
+                f"<br><span style='font-size:0.9rem;font-weight:normal;'>{sb_desc}（同物件中央値 {sb_median:.1f} 万円/㎡）</span>"
+                f"</div>",
+                unsafe_allow_html=True,
+            )
         st.markdown("")
 
     # 価格推移グラフ
@@ -291,7 +295,7 @@ p75         = sqm_series.quantile(0.75)
 percentile  = (sqm_series < input_sqm).mean() * 100
 diff_pct    = (median_sqm - input_sqm) / median_sqm * 100
 
-verdict_label, verdict_color, verdict_desc = get_verdict(diff_pct)
+verdict_label, verdict_color, verdict_desc, verdict_img = get_verdict(diff_pct)
 
 col1, col2, col3 = st.columns(3)
 col1.metric("入力物件の㎡単価", f"{input_sqm:.1f} 万円/㎡")
@@ -301,15 +305,19 @@ col3.metric("比較件数", f"{len(comp)} 件")
 
 st.markdown("---")
 
-# 判定バナー
-st.markdown(
-    f"<div style='background:{verdict_color};padding:18px;border-radius:10px;"
-    f"text-align:center;font-size:1.6rem;font-weight:bold;color:#222;'>"
-    f"【周辺比較】{verdict_label}<br>"
-    f"<span style='font-size:1rem;font-weight:normal;'>{verdict_desc}</span>"
-    f"</div>",
-    unsafe_allow_html=True,
-)
+# 判定バナー（キャラクター画像＋結果）
+img_col, txt_col = st.columns([1, 4])
+with img_col:
+    st.image(verdict_img, width=150)
+with txt_col:
+    st.markdown(
+        f"<div style='background:{verdict_color};padding:18px;border-radius:10px;"
+        f"text-align:center;font-size:1.6rem;font-weight:bold;color:#222;'>"
+        f"【周辺比較】{verdict_label}<br>"
+        f"<span style='font-size:1rem;font-weight:normal;'>{verdict_desc}</span>"
+        f"</div>",
+        unsafe_allow_html=True,
+    )
 
 st.markdown("")
 
