@@ -87,7 +87,7 @@ def find_comparables(
     )
 
     if station:
-        mask &= (df["最寄駅"] == station)
+        mask &= df["最寄駅"].isin(station)
 
     if built_year > 0:
         low  = built_year - age_range
@@ -158,9 +158,14 @@ with st.sidebar:
     wards = get_wards(df_all)
     ward = st.selectbox("区", wards)
 
-    stations = ["（指定しない）"] + get_stations(df_all, ward)
-    station_sel = st.selectbox("最寄駅", stations)
-    station = None if station_sel == "（指定しない）" else station_sel
+    stations = get_stations(df_all, ward)
+    station_sel = st.multiselect(
+        "最寄駅（最大3つまで選択可）",
+        options=stations,
+        max_selections=3,
+        placeholder="駅を選択（未選択の場合は区全体で比較）"
+    )
+    station = station_sel if station_sel else None
 
     area = st.number_input("専有面積（㎡）", min_value=10.0, max_value=300.0, value=70.0, step=0.5)
 
