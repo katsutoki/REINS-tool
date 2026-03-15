@@ -66,6 +66,15 @@ def find_same_building(df: pd.DataFrame, building_name: str) -> pd.DataFrame:
 # ──────────────────────────────────────────────
 # 類似物件の抽出
 # ──────────────────────────────────────────────
+def extract_walk_minutes(text) -> float:
+    """交通列から徒歩分数を抽出する。取得できない場合はNaNを返す。"""
+    import re
+    if pd.isna(text):
+        return float("nan")
+    m = re.search(r"徒歩\s*(\d+)分", str(text))
+    return float(m.group(1)) if m else float("nan")
+
+
 def find_comparables(
     df: pd.DataFrame,
     ward: str,
@@ -76,6 +85,7 @@ def find_comparables(
     age_range: int,
     nendo_from: int,
     nendo_to: int,
+    walk_max: int = 0,
 ) -> pd.DataFrame:
 
     mask = (
@@ -96,6 +106,11 @@ def find_comparables(
 
     comp = df[mask].copy()
     comp["㎡単価_calc"] = comp["成約価格(万円)"] / comp["専有面積"]
+
+    if walk_max > 0:
+        comp["徒歩分数"] = comp["交通"].apply(extract_walk_minutes)
+        comp = comp[comp["徒歩分数"] <= walk_max]
+
     return comp
 
 
@@ -120,7 +135,7 @@ def get_verdict(diff_pct: float):
 # ──────────────────────────────────────────────
 # 共通表示列
 # ──────────────────────────────────────────────
-SHOW_COLS = ["年度", "成約年月日", "建物名", "区", "最寄駅", "交通",
+SHOW_COLS = ["年度", "成約年月日", "建物名", "所在地", "区", "最寄駅", "交通",
              "専有面積", "間取", "築年月", "成約価格(万円)", "㎡単価_calc", "管理費"]
 
 def format_table(df: pd.DataFrame) -> pd.DataFrame:
@@ -170,6 +185,11 @@ with st.sidebar:
     area = st.number_input("専有面積（㎡）", min_value=10.0, max_value=300.0, value=70.0, step=0.5)
 
     price = st.number_input("査定・希望価格（万円）", min_value=100, max_value=99999, value=2000, step=10)
+
+    walk_max = st.number_input(
+        "徒歩分数（分以内）", min_value=0, max_value=30, value=0, step=1,
+        help="0を入力すると徒歩分数を絞り込み条件から除外します"
+    )
 
     # 築年数 or 築年（西暦）を選択入力
     st.markdown("**築年の入力方法**")
@@ -277,7 +297,8 @@ st.subheader("📊 周辺類似物件との比較")
 
 comp = find_comparables(
     df_all, ward, station, area, built_year,
-    area_range, age_range, nendo_from, nendo_to
+    area_range, age_range, nendo_from, nendo_to,
+    walk_max=walk_max
 )
 
 if len(comp) < 3:
