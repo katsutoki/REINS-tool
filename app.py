@@ -156,7 +156,7 @@ def format_table(df: pd.DataFrame) -> pd.DataFrame:
 # ──────────────────────────────────────────────
 st.set_page_config(page_title="お買い得判定ツール", layout="wide")
 st.title("🏠 REINS成約データ お買い得判定ツール")
-st.caption("令和2〜8年の札幌市マンション成約データをもとに、物件がお買い得かどうかを判定します。")
+st.caption("平成30年〜令和8年の札幌市マンション成約データをもとに、物件がお買い得かどうかを判定します。")
 
 df_all = load_all()
 
@@ -211,9 +211,14 @@ with st.sidebar:
     st.subheader("🔍 比較条件")
     area_range = st.slider("専有面積の許容範囲（±%）", 5, 50, 20, step=5)
     age_range  = st.slider("築年の許容範囲（±年）",    1, 20, 10, step=1)
+    def nendo_label(x):
+        if x == 0:
+            return "平成30年"
+        return f"令和{x}年"
+
     nendo_from, nendo_to = st.select_slider(
-        "対象年度", options=list(range(2, 9)),
-        value=(2, 8), format_func=lambda x: f"令和{x}年"
+        "対象年度", options=list(range(0, 9)),
+        value=(0, 8), format_func=nendo_label
     )
 
     run = st.button("判定する", type="primary", use_container_width=True)
@@ -245,10 +250,20 @@ if not same_bldg.empty:
         sb_median = sb_sqm.median()
         sb_diff   = (sb_median - input_sqm) / sb_median * 100
         sb_label, sb_color, sb_desc, sb_img = get_verdict(sb_diff)
-        img_col, txt_col = st.columns([1, 4])
-        with img_col:
-            st.image(sb_img, width=120)
-        with txt_col:
+        if os.path.exists(sb_img):
+            img_col, txt_col = st.columns([1, 4])
+            with img_col:
+                st.image(sb_img, width=120)
+            with txt_col:
+                st.markdown(
+                    f"<div style='background:{sb_color};padding:12px;border-radius:8px;"
+                    f"text-align:center;font-size:1.2rem;font-weight:bold;color:#222;'>"
+                    f"同一物件の成約履歴と比較: {sb_label}"
+                    f"<br><span style='font-size:0.9rem;font-weight:normal;'>{sb_desc}（同物件中央値 {sb_median:.1f} 万円/㎡）</span>"
+                    f"</div>",
+                    unsafe_allow_html=True,
+                )
+        else:
             st.markdown(
                 f"<div style='background:{sb_color};padding:12px;border-radius:8px;"
                 f"text-align:center;font-size:1.2rem;font-weight:bold;color:#222;'>"
@@ -327,10 +342,20 @@ col3.metric("比較件数", f"{len(comp)} 件")
 st.markdown("---")
 
 # 判定バナー（キャラクター画像＋結果）
-img_col, txt_col = st.columns([1, 4])
-with img_col:
-    st.image(verdict_img, width=150)
-with txt_col:
+if os.path.exists(verdict_img):
+    img_col, txt_col = st.columns([1, 4])
+    with img_col:
+        st.image(verdict_img, width=150)
+    with txt_col:
+        st.markdown(
+            f"<div style='background:{verdict_color};padding:18px;border-radius:10px;"
+            f"text-align:center;font-size:1.6rem;font-weight:bold;color:#222;'>"
+            f"【周辺比較】{verdict_label}<br>"
+            f"<span style='font-size:1rem;font-weight:normal;'>{verdict_desc}</span>"
+            f"</div>",
+            unsafe_allow_html=True,
+        )
+else:
     st.markdown(
         f"<div style='background:{verdict_color};padding:18px;border-radius:10px;"
         f"text-align:center;font-size:1.6rem;font-weight:bold;color:#222;'>"
